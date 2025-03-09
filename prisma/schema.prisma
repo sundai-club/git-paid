@@ -1,0 +1,36 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  githubId        String   @unique
+  githubUsername  String
+  name            String?
+  token           String?
+  bountiesCreated Bounty[] @relation("OwnerBounties")
+  bountiesClaimed Bounty[] @relation("DevBounties")
+}
+
+model Bounty {
+  id         Int     @id @default(autoincrement())
+  repoOwner  String
+  repoName   String
+  issueNumber Int
+  amount     Float
+  currency   String   @default("USD")
+  status     String
+  escrowId   String
+  createdBy  Int
+  claimedBy  Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  owner      User   @relation("OwnerBounties", fields: [createdBy], references: [id])
+  claimer    User?  @relation("DevBounties", fields: [claimedBy], references: [id])
+}
