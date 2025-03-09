@@ -1,9 +1,9 @@
 {
   "/_app": "pages/_app.js",
-  "/_document": "pages/_document.js",
   "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
   "/create-bounty": "pages/create-bounty.js",
+  "/": "pages/index.js",
   "/dashboard": "pages/dashboard.js",
-  "/claim-bounty": "pages/claim-bounty.js",
-  "/review": "pages/review.js"
+  "/auth/callback": "pages/auth/callback.js"
 }

@@ -1,6 +1,6 @@
 # GitHub Bounty Platform
 
-This full-stack web application allows GitHub repository owners to create bounties on issues and incentivize developers to contribute fixes. Bounties are held in escrow using the **Radius API** for secure payment release upon completion.
+This full-stack web application allows GitHub repository owners to create bounties on issues and incentivize developers to contribute fixes. Bounties are held in escrow using the **Radius SDK** for secure payment release upon completion.
 
 ## Features
 
@@ -9,14 +9,14 @@ This full-stack web application allows GitHub repository owners to create bounti
 - **Bounty Listing**: Open bounties are publicly listed for developers to browse.
 - **Claiming Bounties**: Developers claim a bounty (locking it for others) and work on the issue.
 - **Approval & Payment**: Once a fix is merged (issue closed), the repo owner approves and the escrowed funds are released to the developer via Radius.
-- **Escrow Management**: Funds are held, released, or refunded using the Radius payments API.
+- **Escrow Management**: Funds are held, released, or refunded using the Radius blockchain integration.
 
 ## Tech Stack
 
-- **Backend**: Node.js + Express, Passport (GitHub OAuth), Prisma (PostgreSQL ORM), Axios (for GitHub & Radius API calls).
+- **Backend**: Node.js + Express, Passport (GitHub OAuth), Prisma (PostgreSQL ORM), Axios (for GitHub API calls).
 - **Frontend**: Next.js (React) for server-side rendering, TailwindCSS for UI styling, Axios for API calls.
 - **Database**: PostgreSQL (via Prisma schema & client).
-- **Payments**: Radius API for escrow and payments.
+- **Blockchain Integration**: Radius SDK for blockchain-based escrow and payments using smart contracts.
 - **Deployment Targets**:
   - Frontend: Vercel (Next.js)
   - Backend: Railway or Render (Node.js service)
@@ -25,10 +25,10 @@ This full-stack web application allows GitHub repository owners to create bounti
 ## Getting Started
 
 ### Prerequisites
-- **Node.js** and **npm** installed.
+- **Node.js** and **npm** installed (Node.js >= 20.12 recommended for Radius SDK).
 - A PostgreSQL database (local or cloud) for storing user and bounty data.
 - A GitHub OAuth App set up (to obtain a Client ID and Client Secret).
-- Radius API credentials for escrow (for testing, you can stub Radius API responses if needed).
+- Radius API credentials for blockchain-based escrow (a testnet RPC endpoint and private key).
 
 ### Installation
 1. **Clone the repository** and navigate to the project directory.
@@ -36,7 +36,9 @@ This full-stack web application allows GitHub repository owners to create bounti
 2. **Configure environment variables**: Create a `.env` file in the root directory (as shown above) with the required keys:
    - GitHub OAuth credentials (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_CALLBACK_URL`).
    - A JWT secret (`JWT_SECRET`) for signing authentication tokens.
-   - Radius API URL and key (`RADIUS_API_URL`, `RADIUS_API_KEY`).
+   - Radius blockchain credentials:
+     - `RADIUS_API_URL`: Radius RPC endpoint in the format `https://rpc.testnet.tryradi.us/<your-api-key>`
+     - `RADIUS_API_KEY`: Your private key in the format `0x<your-private-key>`
    - Your Postgres `DATABASE_URL`.
    - The frontend URL and API base (`FRONTEND_URL`, `NEXT_PUBLIC_API_BASE`).
    
@@ -44,6 +46,7 @@ This full-stack web application allows GitHub repository owners to create bounti
    ```bash
    cd backend
    npm install
+   npm install @radiustechsystems/sdk  # Install the Radius SDK
    ```
    
 4. **Install frontend dependencies**:
@@ -106,14 +109,14 @@ Ensure the backend (http://localhost:5000) and frontend (http://localhost:3000) 
 ### Project Structure
 
 The repository is divided into a `backend` and `frontend` directory:
-- **backend**: Node/Express server, OAuth authentication, API endpoints, database models (Prisma), and Radius integration.
+- **backend**: Node/Express server, OAuth authentication, API endpoints, database models (Prisma), and Radius blockchain integration.
 - **frontend**: Next.js React application with pages for login, dashboard, creating/claiming bounties, and review. Uses Axios to communicate with the backend API.
 
 Key backend files: 
 - `controllers/` (`authController.js`, `bountyController.js`) implement the logic for auth and bounty actions.
 - `routes/` (`authRoutes.js`, `bountyRoutes.js`) define the API endpoints.
 - `models/` (`userModel.js`, `bountyModel.js`) define database interactions via Prisma.
-- `config/` (`database.js`, `radius.js`) handle DB connection and Radius API calls.
+- `config/` (`database.js`, `radius.js`) handle DB connection and blockchain integration with Radius SDK.
 - `middleware/authMiddleware.js` protects routes using JWT authentication.
 - `prisma/schema.prisma` describes the database schema for users and bounties.
 
@@ -135,7 +138,11 @@ For production deployment, you can:
 
 - **Error Handling**: The application includes basic error handling. For example, attempting to create a bounty on a non-existent issue or without sufficient permissions will return an error message. Ensure to handle such errors on the frontend (this demo shows error messages on forms).
 - **Security**: JWT tokens are stored in `localStorage` for simplicity. In a production environment, consider using HTTP-only cookies or more secure token storage. Always protect sensitive routes (we use `ensureAuth` middleware for API protection).
-- **Radius API**: This app assumes the Radius API will accept our internal user IDs as account identifiers for escrow. In a real scenario, you might need to create/link Radius accounts for each user and store a Radius-specific account ID.
+- **Radius Blockchain Integration**: 
+  - The app uses the official `@radiustechsystems/sdk` for all blockchain operations.
+  - Escrow funds are managed through blockchain transactions secured by the Radius network.
+  - For production use, you should deploy and use proper escrow smart contracts.
+  - The implementation in `config/radius.js` provides the foundation for blockchain-based escrow but can be extended with more sophisticated smart contracts.
 - **Improvement**: Implementing webhooks or periodic checks could automate moving bounties to "ready for payout" when an issue is closed, instead of relying on manual refresh.
 
 Enjoy building and contributing to open-source with the GitHub Bounty Platform!

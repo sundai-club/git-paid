@@ -15,6 +15,11 @@
   ],
   "rootMainFiles": [],
   "pages": {
+    "/": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/index.js"
+    ],
     "/_app": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
@@ -25,10 +30,10 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/claim-bounty": [
+    "/auth/callback": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/claim-bounty.js"
+      "static/chunks/pages/auth/callback.js"
     ],
     "/create-bounty": [
       "static/chunks/webpack.js",
@@ -39,11 +44,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/dashboard.js"
-    ],
-    "/review": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/review.js"
     ]
   },
   "ampFirstPages": []
