@@ -15,40 +15,62 @@ const radius = require('../config/radius');
 async function createBounty(req, res) {
   try {
     const { repo_owner, repo_name, issue_number, amount } = req.body;
+    console.log('Received bounty creation request:', { repo_owner, repo_name, issue_number, amount });
+    
     const userId = req.user.id;
     // Fetch the creating user's details (for GitHub token and Radius ID)
     const user = await getUserById(userId);
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
+    
     // Verify the GitHub issue exists and is open
     const issueUrl = `https://api.github.com/repos/${repo_owner}/${repo_name}/issues/${issue_number}`;
-    const ghResponse = await axios.get(issueUrl, {
-      headers: { Authorization: `token ${user.token}` }
-    });
-    const issue = ghResponse.data;
-    if (!issue || issue.state !== 'open') {
-      return res.status(400).json({ error: 'Issue is not open or not found' });
+    console.log('Verifying GitHub issue:', issueUrl);
+    
+    try {
+      const ghResponse = await axios.get(issueUrl, {
+        headers: { Authorization: `token ${user.token}` }
+      });
+      
+      const issue = ghResponse.data;
+      console.log('Issue state:', issue.state);
+      
+      if (!issue || issue.state !== 'open') {
+        return res.status(400).json({ error: 'Issue is not open or not found' });
+      }
+      
+      // Lock funds in escrow via Radius API
+      const escrowId = await radius.createEscrow(userId, amount);
+      
+      // Create bounty record in the database
+      const bounty = await createBountyModel({
+        repoOwner: repo_owner,
+        repoName: repo_name,
+        issueNumber: parseInt(issue_number),
+        amount: parseFloat(amount),
+        currency: 'USD',
+        status: 'OPEN',
+        escrowId: escrowId,
+        createdBy: userId
+      });
+      
+      return res.status(201).json({ bounty });
+    } catch (ghError) {
+      console.error('GitHub API error:', ghError.response?.status, ghError.response?.data);
+      return res.status(400).json({ 
+        error: 'Issue not found or access denied',
+        details: ghError.response?.data?.message || ghError.message
+      });
     }
-    // Lock funds in escrow via Radius API
-    const escrowId = await radius.createEscrow(userId, amount);
-    // Create bounty record in the database
-    const bounty = await createBountyModel({
-      repoOwner: repo_owner,
-      repoName: repo_name,
-      issueNumber: parseInt(issue_number),
-      amount: parseFloat(amount),
-      currency: 'USD',
-      status: 'OPEN',
-      escrowId: escrowId,
-      createdBy: userId
-    });
-    return res.status(201).json({ bounty });
   } catch (err) {
     console.error('Error creating bounty:', err.message);
     // Handle known errors (e.g., issue not found or permission denied)
     if (err.response) {
-      return res.status(400).json({ error: 'Issue not found or access denied' });
+      return res.status(400).json({ 
+        error: 'Issue not found or access denied',
+        details: err.response?.data?.message || err.message
+      });
     }
     return res.status(500).json({ error: 'Failed to create bounty' });
   }

@@ -28,7 +28,16 @@ export async function fetchUserBounties() {
 
 // Create a new bounty
 export async function createBounty(data) {
-  return API.post('/api/bounty', data);
+  // Convert from camelCase to snake_case for backend compatibility
+  const backendData = {
+    repo_owner: data.repoOwner,
+    repo_name: data.repoName,
+    issue_number: data.issueNumber,
+    amount: data.amount
+  };
+  
+  console.log('Sending bounty creation request with data:', backendData);
+  return API.post('/api/bounty', backendData);
 }
 
 // Claim a bounty by ID
@@ -39,4 +48,26 @@ export async function claimBounty(bountyId) {
 // Complete a bounty by ID (approve and release payment)
 export async function completeBounty(bountyId) {
   return API.post('/api/bounty/complete', { bounty_id: bountyId });
+}
+
+// Fetch user's repositories from GitHub
+export async function fetchUserRepos() {
+  try {
+    const res = await API.get('/api/github/repos');
+    return res.data.repos;
+  } catch (error) {
+    console.error('Error fetching repositories:', error.response?.data || error.message);
+    return [];
+  }
+}
+
+// Fetch issues from a specific repository
+export async function fetchRepoIssues(repoOwner, repoName) {
+  try {
+    const res = await API.get(`/api/github/issues?owner=${repoOwner}&repo=${repoName}`);
+    return res.data.issues;
+  } catch (error) {
+    console.error('Error fetching issues:', error.response?.data || error.message);
+    return [];
+  }
 }
