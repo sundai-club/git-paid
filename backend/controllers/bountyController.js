@@ -6,7 +6,9 @@ const {
   markBountyCompleted,
   cancelBounty: cancelBountyModel,
   getOpenBounties,
-  getUserBounties
+  getUserBounties,
+  getAllBounties,
+  getBountyByIssue
 } = require('../models/bountyModel');
 const { getUserById } = require('../models/userModel');
 const radius = require('../config/radius');
@@ -42,6 +44,7 @@ async function createBounty(req, res) {
       
       // Lock funds in escrow via Radius API
       const escrowId = await radius.createEscrow(userId, amount);
+      console.log('Funds locked in escrow with ID:', escrowId);
       
       // Create bounty record in the database
       const bounty = await createBountyModel({
@@ -59,134 +62,119 @@ async function createBounty(req, res) {
     } catch (ghError) {
       console.error('GitHub API error:', ghError.response?.status, ghError.response?.data);
       return res.status(400).json({ 
-        error: 'Issue not found or access denied',
-        details: ghError.response?.data?.message || ghError.message
+        error: 'GitHub API error', 
+        message: ghError.response?.data?.message || ghError.message,
+        status: ghError.response?.status
       });
     }
-  } catch (err) {
-    console.error('Error creating bounty:', err.message);
-    // Handle known errors (e.g., issue not found or permission denied)
-    if (err.response) {
-      return res.status(400).json({ 
-        error: 'Issue not found or access denied',
-        details: err.response?.data?.message || err.message
-      });
-    }
-    return res.status(500).json({ error: 'Failed to create bounty' });
+  } catch (error) {
+    console.error('Error creating bounty:', error);
+    return res.status(500).json({ error: 'Failed to create bounty', message: error.message });
   }
 }
 
 // Claim an open bounty (by a developer)
 async function claimBounty(req, res) {
   try {
-    const { bounty_id } = req.body;
-    const userId = req.user.id;  // current user (developer)
-    // Retrieve the bounty
-    const bounty = await getBountyById(bounty_id);
+    const { bountyId } = req.params;
+    const userId = req.user.id;
+    
+    // Fetch the bounty
+    const bounty = await getBountyById(parseInt(bountyId));
     if (!bounty) {
       return res.status(404).json({ error: 'Bounty not found' });
     }
+    
+    // Verify the bounty is open
     if (bounty.status !== 'OPEN') {
-      return res.status(400).json({ error: 'Bounty is not available for claiming' });
+      return res.status(400).json({ error: `Bounty is not open (status: ${bounty.status})` });
     }
-    if (bounty.createdBy === userId) {
-      return res.status(400).json({ error: 'You cannot claim your own bounty' });
-    }
-    // Mark the bounty as claimed by this user
-    const updatedBounty = await markBountyClaimed(bounty_id, userId);
-    // Post a comment on the GitHub issue to indicate the claim (using repo owner's token)
-    try {
-      const owner = updatedBounty.owner;  // owner includes the repo owner's user info and token
-      const devUsername = req.user.username;
-      const commentBody = {
-        body: `Bounty claimed by @${devUsername} via the bounty platform.`
-      };
-      await axios.post(
-        `https://api.github.com/repos/${updatedBounty.repoOwner}/${updatedBounty.repoName}/issues/${updatedBounty.issueNumber}/comments`,
-        commentBody,
-        { headers: { Authorization: `token ${owner.token}` } }
-      );
-    } catch (err) {
-      console.error('Failed to post GitHub comment:', err.response?.data || err.message);
-      // Continue even if comment fails
-    }
+    
+    // Mark as claimed in the database
+    const updatedBounty = await markBountyClaimed(parseInt(bountyId), userId);
+    
     return res.status(200).json({ bounty: updatedBounty });
-  } catch (err) {
-    console.error('Error claiming bounty:', err.message);
-    return res.status(500).json({ error: 'Failed to claim bounty' });
+  } catch (error) {
+    console.error('Error claiming bounty:', error);
+    return res.status(500).json({ error: 'Failed to claim bounty', message: error.message });
   }
 }
 
 // Complete a bounty (approve fix and release payment by repo owner)
 async function completeBounty(req, res) {
   try {
-    const { bounty_id } = req.body;
-    const userId = req.user.id;  // current user (should be the bounty creator)
-    const bounty = await getBountyById(bounty_id);
+    const { bountyId } = req.params;
+    const userId = req.user.id;
+    
+    // Fetch the bounty
+    const bounty = await getBountyById(parseInt(bountyId));
     if (!bounty) {
       return res.status(404).json({ error: 'Bounty not found' });
     }
+    
+    // Verify the requester is the owner
     if (bounty.createdBy !== userId) {
-      return res.status(403).json({ error: 'Only the bounty creator can complete it' });
+      return res.status(403).json({ error: 'Only the bounty owner can mark it as completed' });
     }
+    
+    // Verify the bounty is claimed
     if (bounty.status !== 'CLAIMED') {
-      return res.status(400).json({ error: 'Bounty is not in a state to complete' });
+      return res.status(400).json({ error: `Bounty cannot be completed (status: ${bounty.status})` });
     }
-    // Verify the GitHub issue is closed (meaning the fix was merged)
-    const owner = await getUserById(userId);
-    const issueUrl = `https://api.github.com/repos/${bounty.repoOwner}/${bounty.repoName}/issues/${bounty.issueNumber}`;
-    const ghResponse = await axios.get(issueUrl, {
-      headers: { Authorization: `token ${owner.token}` }
+    
+    // Release funds from escrow to the developer
+    const releaseResult = await radius.releaseEscrow(bounty.escrowId, bounty.claimedBy);
+    console.log('Escrow released:', releaseResult);
+    
+    // Mark as completed in the database
+    const updatedBounty = await markBountyCompleted(parseInt(bountyId), releaseResult.transaction);
+    
+    return res.status(200).json({
+      bounty: updatedBounty,
+      transaction: releaseResult.transaction
     });
-    const issue = ghResponse.data;
-    if (!issue || issue.state !== 'closed') {
-      return res.status(400).json({ error: 'Issue is not closed yet, cannot complete bounty' });
-    }
-    // Release escrowed funds to the developer via Radius
-    await radius.releaseEscrow(bounty.escrowId, bounty.claimedBy);
-    // Update bounty status to completed
-    await markBountyCompleted(bounty_id);
-    return res.status(200).json({ message: 'Bounty completed and payment released' });
-  } catch (err) {
-    console.error('Error completing bounty:', err.message);
-    return res.status(500).json({ error: 'Failed to complete bounty' });
+  } catch (error) {
+    console.error('Error completing bounty:', error);
+    return res.status(500).json({ error: 'Failed to complete bounty', message: error.message });
   }
 }
 
 // Cancel a bounty (refund to owner)
 async function cancelBounty(req, res) {
   try {
-    const { bounty_id } = req.body;
+    const { bountyId } = req.params;
     const userId = req.user.id;
-    const bounty = await getBountyById(bounty_id);
+    
+    // Fetch the bounty
+    const bounty = await getBountyById(parseInt(bountyId));
     if (!bounty) {
       return res.status(404).json({ error: 'Bounty not found' });
     }
+    
+    // Verify the requester is the owner
     if (bounty.createdBy !== userId) {
-      return res.status(403).json({ error: 'Only the bounty creator can cancel it' });
+      return res.status(403).json({ error: 'Only the bounty owner can cancel it' });
     }
-    if (bounty.status === 'COMPLETED' || bounty.status === 'CANCELLED') {
-      return res.status(400).json({ error: 'Bounty cannot be cancelled at this stage' });
+    
+    // Verify the bounty is open or claimed
+    if (bounty.status !== 'OPEN' && bounty.status !== 'CLAIMED') {
+      return res.status(400).json({ error: `Bounty cannot be cancelled (status: ${bounty.status})` });
     }
-    // Refund the escrowed funds via Radius
-    await radius.refundEscrow(bounty.escrowId, userId);
-    // Update bounty status to cancelled
-    await cancelBountyModel(bounty_id);
-    // Optionally, comment on GitHub issue that the bounty was cancelled
-    try {
-      const owner = await getUserById(userId);
-      await axios.post(
-        `https://api.github.com/repos/${bounty.repoOwner}/${bounty.repoName}/issues/${bounty.issueNumber}/comments`,
-        { body: 'This bounty has been cancelled by the owner.' },
-        { headers: { Authorization: `token ${owner.token}` } }
-      );
-    } catch (err) {
-      console.error('Failed to post cancellation comment:', err.message);
-    }
-    return res.status(200).json({ message: 'Bounty cancelled and funds refunded' });
-  } catch (err) {
-    console.error('Error cancelling bounty:', err.message);
-    return res.status(500).json({ error: 'Failed to cancel bounty' });
+    
+    // Refund from escrow to the owner
+    const refundResult = await radius.refundEscrow(bounty.escrowId, userId);
+    console.log('Escrow refunded:', refundResult);
+    
+    // Mark as cancelled in the database
+    const updatedBounty = await cancelBountyModel(parseInt(bountyId));
+    
+    return res.status(200).json({
+      bounty: updatedBounty,
+      transaction: refundResult.transaction
+    });
+  } catch (error) {
+    console.error('Error cancelling bounty:', error);
+    return res.status(500).json({ error: 'Failed to cancel bounty', message: error.message });
   }
 }
 
@@ -195,9 +183,20 @@ async function listOpenBounties(req, res) {
   try {
     const bounties = await getOpenBounties();
     return res.status(200).json({ bounties });
-  } catch (err) {
-    console.error('Error fetching open bounties:', err.message);
-    return res.status(500).json({ error: 'Failed to fetch open bounties' });
+  } catch (error) {
+    console.error('Error listing open bounties:', error);
+    return res.status(500).json({ error: 'Failed to list bounties', message: error.message });
+  }
+}
+
+// List all bounties (admin only)
+async function listAllBounties(req, res) {
+  try {
+    const bounties = await getAllBounties();
+    return res.status(200).json({ bounties });
+  } catch (error) {
+    console.error('Error listing all bounties:', error);
+    return res.status(500).json({ error: 'Failed to list all bounties', message: error.message });
   }
 }
 
@@ -205,11 +204,11 @@ async function listOpenBounties(req, res) {
 async function listUserBounties(req, res) {
   try {
     const userId = req.user.id;
-    const data = await getUserBounties(userId);
-    return res.status(200).json(data);
-  } catch (err) {
-    console.error('Error fetching user bounties:', err.message);
-    return res.status(500).json({ error: 'Failed to fetch user bounties' });
+    const bounties = await getUserBounties(userId);
+    return res.status(200).json({ bounties });
+  } catch (error) {
+    console.error('Error listing user bounties:', error);
+    return res.status(500).json({ error: 'Failed to list bounties', message: error.message });
   }
 }
 
@@ -219,5 +218,6 @@ module.exports = {
   completeBounty,
   cancelBounty,
   listOpenBounties,
-  listUserBounties
+  listUserBounties,
+  listAllBounties
 };

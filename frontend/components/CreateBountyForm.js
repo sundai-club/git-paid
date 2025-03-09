@@ -225,7 +225,7 @@ const CreateBountyForm = () => {
           </div>
           
           <div className="mb-4">
-            <label className="block font-medium mb-1">Bounty Amount (USD)</label>
+            <label className="block font-medium mb-1">Bounty Amount (ETH)</label>
             <input 
               type="number" 
               name="amount" 
@@ -233,9 +233,11 @@ const CreateBountyForm = () => {
               value={form.amount} 
               onChange={handleAmountChange}
               className="w-full px-3 py-2 border rounded"
-              min="1"
-              step="0.01"
+              min="0.000001"
+              step="any"
+              placeholder="Enter any amount greater than 0"
             />
+            <p className="text-xs text-gray-500 mt-1">Enter the amount in ETH (e.g. 0.1, 1.5, etc.)</p>
           </div>
           
           <button 

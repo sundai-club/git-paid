@@ -7,7 +7,8 @@ const {
   completeBounty,
   cancelBounty,
   listOpenBounties,
-  listUserBounties
+  listUserBounties,
+  listAllBounties
 } = require('../controllers/bountyController');
 const { getUserById } = require('../models/userModel');
 const axios = require('axios');
@@ -18,17 +19,20 @@ router.get('/bounties/open', listOpenBounties);
 // Protected route: list bounties for logged-in user (posted and claimed)
 router.get('/bounties/user', ensureAuth, listUserBounties);
 
+// Admin route: list all bounties (including completed and cancelled)
+router.get('/bounties/all', ensureAuth, listAllBounties);
+
 // Protected route: create a new bounty on a GitHub issue
 router.post('/bounty', ensureAuth, createBounty);
 
 // Protected route: claim an open bounty
-router.post('/bounty/claim', ensureAuth, claimBounty);
+router.post('/bounty/:bountyId/claim', ensureAuth, claimBounty);
 
 // Protected route: mark a bounty as completed (approve and release payment)
-router.post('/bounty/complete', ensureAuth, completeBounty);
+router.post('/bounty/:bountyId/complete', ensureAuth, completeBounty);
 
 // Protected route: cancel a bounty (refund escrow)
-router.post('/bounty/cancel', ensureAuth, cancelBounty);
+router.post('/bounty/:bountyId/cancel', ensureAuth, cancelBounty);
 
 // Routes for GitHub API integration
 router.get('/github/repos', ensureAuth, async (req, res) => {

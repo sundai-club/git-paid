@@ -18,19 +18,21 @@ model User {
 }
 
 model Bounty {
-  id         Int     @id @default(autoincrement())
-  repoOwner  String
-  repoName   String
-  issueNumber Int
-  amount     Float
-  currency   String   @default("USD")
-  status     String
-  escrowId   String
-  createdBy  Int
-  claimedBy  Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  repoOwner    String
+  repoName     String
+  issueNumber  Int
+  amount       Float
+  currency     String   @default("USD")
+  status       String
+  escrowId     String
+  transactionId String?
+  createdBy    Int
+  claimedBy    Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  completedAt  DateTime?
 
-  owner      User   @relation("OwnerBounties", fields: [createdBy], references: [id])
-  claimer    User?  @relation("DevBounties", fields: [claimedBy], references: [id])
+  owner        User     @relation("OwnerBounties", fields: [createdBy], references: [id])
+  claimer      User?    @relation("DevBounties", fields: [claimedBy], references: [id])
 }

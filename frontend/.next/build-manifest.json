@@ -30,6 +30,11 @@
       "static/chunks/main.js",
       "static/chunks/pages/claim-bounty.js"
     ],
+    "/create-bounty": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/create-bounty.js"
+    ],
     "/dashboard": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",

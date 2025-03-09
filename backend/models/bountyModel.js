@@ -23,10 +23,14 @@ async function markBountyClaimed(id, devId) {
 }
 
 // Mark a bounty as completed (after approval)
-async function markBountyCompleted(id) {
+async function markBountyCompleted(id, transactionId) {
   return prisma.bounty.update({
     where: { id: id },
-    data: { status: 'COMPLETED' }
+    data: { 
+      status: 'COMPLETED',
+      completedAt: new Date(),
+      transactionId: transactionId
+    }
   });
 }
 
@@ -42,6 +46,16 @@ async function cancelBounty(id) {
 async function getOpenBounties() {
   return prisma.bounty.findMany({
     where: { status: 'OPEN' }
+  });
+}
+
+// Get all bounties including completed/cancelled ones
+async function getAllBounties() {
+  return prisma.bounty.findMany({
+    include: {
+      owner: { select: { name: true, githubUsername: true } },
+      claimer: { select: { name: true, githubUsername: true } }
+    }
   });
 }
 
@@ -66,6 +80,17 @@ async function getUserBounties(userId) {
   return { posted, claimed };
 }
 
+// Get a bounty by repository and issue number
+async function getBountyByIssue(repoOwner, repoName, issueNumber) {
+  return prisma.bounty.findFirst({
+    where: {
+      repoOwner: repoOwner,
+      repoName: repoName,
+      issueNumber: parseInt(issueNumber, 10)
+    }
+  });
+}
+
 module.exports = {
   createBounty,
   getBountyById,
@@ -73,5 +98,7 @@ module.exports = {
   markBountyCompleted,
   cancelBounty,
   getOpenBounties,
-  getUserBounties
+  getUserBounties,
+  getAllBounties,
+  getBountyByIssue
 };
