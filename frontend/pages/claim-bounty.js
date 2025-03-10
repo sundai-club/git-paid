@@ -5,8 +5,11 @@ import { useRouter } from 'next/router';
 export default function ClaimBountyPage() {
   const router = useRouter();
   useEffect(() => {
-    if (!localStorage.getItem('token')) {
-      router.push('/');
+    // Client-side only code
+    if (typeof window !== 'undefined') {
+      if (!localStorage.getItem('token')) {
+        router.push('/');
+      }
     }
   }, [router]);
 

@@ -25,6 +25,11 @@ const CreateBountyForm = () => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
+        // Client-side only code
+        if (typeof window === 'undefined') {
+          return;
+        }
+        
         // Get user profile from GitHub
         const token = localStorage.getItem('token');
         if (!token) {
@@ -156,96 +161,186 @@ const CreateBountyForm = () => {
     data: issue
   }));
 
+  // Custom styles for React Select to match dark theme
+  const customSelectStyles = {
+    control: (provided, state) => ({
+      ...provided,
+      backgroundColor: '#1e293b',
+      borderColor: '#334155',
+      boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : null,
+      '&:hover': {
+        borderColor: '#3b82f6'
+      },
+      padding: '2px'
+    }),
+    menu: (provided) => ({
+      ...provided,
+      backgroundColor: '#1e293b',
+      border: '1px solid #334155',
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: state.isSelected 
+        ? '#3b82f6' 
+        : state.isFocused 
+          ? '#334155' 
+          : '#1e293b',
+      color: state.isSelected ? 'white' : '#e2e8f0',
+      '&:hover': {
+        backgroundColor: state.isSelected ? '#3b82f6' : '#334155'
+      }
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      color: '#e2e8f0'
+    }),
+    input: (provided) => ({
+      ...provided,
+      color: '#e2e8f0'
+    }),
+    placeholder: (provided) => ({
+      ...provided,
+      color: '#94a3b8'
+    }),
+    indicatorSeparator: (provided) => ({
+      ...provided,
+      backgroundColor: '#334155'
+    }),
+    dropdownIndicator: (provided) => ({
+      ...provided,
+      color: '#94a3b8',
+      '&:hover': {
+        color: '#e2e8f0'
+      }
+    }),
+    clearIndicator: (provided) => ({
+      ...provided,
+      color: '#94a3b8',
+      '&:hover': {
+        color: '#e2e8f0'
+      }
+    })
+  };
+
   return (
-    <div className="max-w-lg mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-semibold mb-4">Create a Bounty</h2>
-      {error && <p className="text-red-600 mb-3">{error}</p>}
+    <div className="max-w-2xl mx-auto p-6 bg-[#1e293b] rounded-xl shadow-lg border border-[#334155]">
+      <h2 className="text-2xl font-semibold mb-6 text-white">Create a Bounty</h2>
+      {error && (
+        <div className="p-4 mb-6 bg-red-900 bg-opacity-20 border border-red-800 rounded-lg">
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
       
       {loading && !userData ? (
         <div className="flex justify-center my-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#3b82f6]"></div>
         </div>
       ) : error && !userData ? (
-        <div className="text-center p-6 bg-red-50 rounded-lg mb-4">
-          <p className="text-red-600 font-semibold mb-2">{error}</p>
-          <p className="text-gray-700 mb-4">Unable to load your GitHub profile data.</p>
+        <div className="text-center p-6 bg-[#0f172a] rounded-lg mb-6 border border-[#334155]">
+          <p className="text-red-400 font-semibold mb-3">{error}</p>
+          <p className="text-gray-400 mb-4">Unable to load your GitHub profile data.</p>
           <button 
             onClick={() => router.push('/')} 
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-gradient-to-r from-[#3b82f6] to-[#2563eb] text-white rounded-lg hover:from-[#2563eb] hover:to-[#1d4ed8] transition-all duration-300 shadow-md"
           >
             Return to Login
           </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="block font-medium mb-1">GitHub Username</label>
-            <input 
-              type="text" 
-              value={userData?.username || ''}
-              className="w-full px-3 py-2 border rounded bg-gray-100"
-              disabled 
-              title="Auto-filled with your GitHub username"
-            />
-            <p className="text-xs text-gray-500 mt-1">This is your GitHub username</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-[#0f172a] rounded-lg p-6 border border-[#334155]">
+            <div className="mb-6">
+              <label className="block font-medium mb-2 text-gray-300">GitHub Username</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  value={userData?.username || ''}
+                  className="w-full pl-10 px-4 py-2 bg-[#1e293b] border border-[#334155] rounded-lg text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                  disabled 
+                  title="Auto-filled with your GitHub username"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">This is your GitHub username</p>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block font-medium mb-2 text-gray-300">Select Repository</label>
+              <Select
+                options={repoOptions}
+                value={selectedRepo}
+                onChange={handleRepoChange}
+                isSearchable
+                placeholder="Search your repositories..."
+                styles={customSelectStyles}
+                isDisabled={loading || repositories.length === 0}
+              />
+              {repositories.length === 0 && !loading && (
+                <p className="text-xs text-red-400 mt-2">No repositories found. Make sure you have access to repositories.</p>
+              )}
+            </div>
+            
+            <div className="mb-6">
+              <label className="block font-medium mb-2 text-gray-300">Select Issue</label>
+              <Select
+                options={issueOptions}
+                value={selectedIssue}
+                onChange={handleIssueChange}
+                isSearchable
+                placeholder={selectedRepo ? "Search issues..." : "First select a repository"}
+                styles={customSelectStyles}
+                isDisabled={loading || !selectedRepo || issues.length === 0}
+              />
+              {selectedRepo && issues.length === 0 && !loading && (
+                <p className="text-xs text-red-400 mt-2">No open issues found in this repository.</p>
+              )}
+            </div>
           </div>
           
-          <div className="mb-3">
-            <label className="block font-medium mb-1">Select Repository</label>
-            <Select
-              options={repoOptions}
-              value={selectedRepo}
-              onChange={handleRepoChange}
-              isSearchable
-              placeholder="Search your repositories..."
-              className="react-select-container"
-              classNamePrefix="react-select"
-              isDisabled={loading || repositories.length === 0}
-            />
-            {repositories.length === 0 && !loading && (
-              <p className="text-xs text-red-500 mt-1">No repositories found. Make sure you have access to repositories.</p>
-            )}
-          </div>
-          
-          <div className="mb-3">
-            <label className="block font-medium mb-1">Select Issue</label>
-            <Select
-              options={issueOptions}
-              value={selectedIssue}
-              onChange={handleIssueChange}
-              isSearchable
-              placeholder={selectedRepo ? "Search issues..." : "First select a repository"}
-              className="react-select-container"
-              classNamePrefix="react-select"
-              isDisabled={loading || !selectedRepo || issues.length === 0}
-            />
-            {selectedRepo && issues.length === 0 && !loading && (
-              <p className="text-xs text-red-500 mt-1">No open issues found in this repository.</p>
-            )}
-          </div>
-          
-          <div className="mb-4">
-            <label className="block font-medium mb-1">Bounty Amount (ETH)</label>
-            <input 
-              type="number" 
-              name="amount" 
-              required 
-              value={form.amount} 
-              onChange={handleAmountChange}
-              className="w-full px-3 py-2 border rounded"
-              min="0.000001"
-              step="any"
-              placeholder="Enter any amount greater than 0"
-            />
-            <p className="text-xs text-gray-500 mt-1">Enter the amount in ETH (e.g. 0.1, 1.5, etc.)</p>
+          <div className="bg-[#0f172a] rounded-lg p-6 border border-[#334155]">
+            <div className="mb-4">
+              <label className="block font-medium mb-2 text-gray-300">Bounty Amount (ETH)</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-400">Ξ</span>
+                </div>
+                <input 
+                  type="number" 
+                  name="amount" 
+                  required 
+                  value={form.amount} 
+                  onChange={handleAmountChange}
+                  className="w-full pl-10 px-4 py-2 bg-[#1e293b] border border-[#334155] rounded-lg text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent"
+                  min="0.000001"
+                  step="any"
+                  placeholder="Enter any amount greater than 0"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Enter the amount in ETH (e.g. 0.1, 1.5, etc.)</p>
+            </div>
           </div>
           
           <button 
             type="submit" 
-            className={`w-full py-2 rounded ${loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
+            className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-300 shadow-lg ${loading || !form.repoOwner || !form.repoName || !form.issueNumber || !form.amount 
+              ? 'bg-[#3b82f6] bg-opacity-50 cursor-not-allowed text-white' 
+              : 'bg-gradient-to-r from-[#3b82f6] to-[#2563eb] hover:from-[#2563eb] hover:to-[#1d4ed8] text-white'}`}
             disabled={loading || !form.repoOwner || !form.repoName || !form.issueNumber || !form.amount}
           >
-            {loading ? 'Creating...' : 'Create Bounty'}
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating...
+              </div>
+            ) : 'Create Bounty'}
           </button>
         </form>
       )}
